@@ -34,20 +34,26 @@ Route::middleware('admin.token')->group(function () {
 
     // CRUD de usuarios con parametro user.
     Route::get('/users', [UserController::class, 'index']);
-    Route::post('/users', [UserController::class, 'store']);
+     Route::post('/users', [UserController::class, 'store']);
     Route::put('/users/{id}', [UserController::class, 'update']);
     Route::patch('/users/{id}', [UserController::class, 'update']);
+    Route::post('/users/{id}/soft-delete', [UserController::class, 'softDelete']);
+    Route::post('/users/{id}/restore', [UserController::class, 'restore']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
     // CRUD protegido de categorias.
     Route::post('/categorias', [CategoriaController::class, 'store']);
     Route::put('/categorias/{id}', [CategoriaController::class, 'update']);
     Route::patch('/categorias/{id}', [CategoriaController::class, 'update']);
+    Route::post('/categorias/{id}/soft-delete', [CategoriaController::class, 'softDelete']);
+    Route::post('/categorias/{id}/restore', [CategoriaController::class, 'restore']);
     Route::delete('/categorias/{id}', [CategoriaController::class, 'destroy']);
 
     // CRUD protegido de perfiles.
     Route::post('/perfiles', [PerfilController::class, 'store']);
     Route::put('/perfiles/{id}', [PerfilController::class, 'update']);
     Route::patch('/perfiles/{id}', [PerfilController::class, 'update']);
+    Route::post('/perfiles/{id}/soft-delete', [PerfilController::class, 'softDelete']);
+    Route::post('/perfiles/{id}/restore', [PerfilController::class, 'restore']);
     Route::delete('/perfiles/{id}', [PerfilController::class, 'destroy']);
 });

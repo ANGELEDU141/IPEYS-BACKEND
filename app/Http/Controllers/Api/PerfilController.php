@@ -51,4 +51,20 @@ class PerfilController extends Controller
 
         return response()->json($result['body'], $result['status']);
     }
+
+      // Baja logica de perfil.
+    public function softDelete(int $id): JsonResponse
+    {
+        $result = $this->perfilService->softDelete($id);
+
+        return response()->json($result['body'], $result['status']);
+    }
+
+    // Restauracion de perfil desactivado.
+    public function restore(int $id): JsonResponse
+    {
+        $result = $this->perfilService->restore($id);
+
+        return response()->json($result['body'], $result['status']);
+    }
 }

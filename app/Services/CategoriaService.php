@@ -9,7 +9,9 @@ class CategoriaService
     // Listado publico de categorias.
     public function list()
     {
-        return Categoria::orderBy('nombre')->get();
+         return Categoria::withCount('perfiles')
+            ->orderBy('nombre')
+            ->get();
     }
 
     // Creacion protegida de categorias.

@@ -42,4 +42,21 @@ class CategoriaController extends Controller
 
         return response()->json($result['body'], $result['status']);
     }
+
+    
+    // Baja logica de categoria.
+    public function softDelete(int $id): JsonResponse
+    {
+        $result = $this->categoriaService->softDelete($id);
+
+        return response()->json($result['body'], $result['status']);
+    }
+
+    // Restauracion de categoria desactivada.
+    public function restore(int $id): JsonResponse
+    {
+        $result = $this->categoriaService->restore($id);
+
+        return response()->json($result['body'], $result['status']);
+    }
 }

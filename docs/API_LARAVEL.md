@@ -22,10 +22,12 @@ users
 - user
 - password
 - rol_id
+- deleted_at
 
 categorias
 - id
 - nombre
+- deleted_at
 
 perfiles_grilla
 - id
@@ -35,6 +37,7 @@ perfiles_grilla
 - categoria_id
 - creado_por
 - created_at
+- deleted_at
 
 galeria_modales
 - id
@@ -98,6 +101,8 @@ GET /api/perfiles/{id}
 ```http
 GET /api/perfiles?search=abogado
 GET /api/perfiles?search=estudio&categoria_id=1
+GET /api/perfiles?page=2&per_page=12
+GET /api/perfiles?categoria_id=1&page=1&per_page=24
 ```
 
 La busqueda revisa:
@@ -107,6 +112,40 @@ nombre del perfil
 descripcion
 nombre de categoria
 ```
+
+La respuesta de perfiles esta paginada:
+
+```json
+{
+    "data": [
+        {
+            "id": 1,
+            "nombre": "Estudio Legal Perez",
+            "descripcion": "Abogados especialistas",
+            "logo_base64": "base64-logo",
+            "categoria_id": 1,
+            "categoria_nombre": "Abogados",
+            "created_at": "2026-06-08T00:00:00.000000Z"
+        }
+    ],
+    "meta": {
+        "current_page": 1,
+        "per_page": 12,
+        "total": 120,
+        "last_page": 10,
+        "from": 1,
+        "to": 12
+    },
+    "links": {
+        "first": "http://localhost:8000/api/perfiles?page=1",
+        "last": "http://localhost:8000/api/perfiles?page=10",
+        "prev": null,
+        "next": "http://localhost:8000/api/perfiles?page=2"
+    }
+}
+```
+
+`per_page` acepta de 1 a 50 elementos. Si no se envia, usa 12.
 
 ## Autenticacion Admin
 
@@ -120,8 +159,8 @@ Body:
 
 ```json
 {
-  "user": "admin",
-  "password": "admin123"
+    "user": "admin",
+    "password": "admin123"
 }
 ```
 
@@ -129,16 +168,16 @@ Respuesta:
 
 ```json
 {
-  "token": "TOKEN",
-  "token_type": "Bearer",
-  "expires_at": "fecha",
-  "expires_in_seconds": 86400,
-  "user": {
-    "id": 1,
-    "user": "admin",
-    "rol_id": 1,
-    "role": "admin"
-  }
+    "token": "TOKEN",
+    "token_type": "Bearer",
+    "expires_at": "fecha",
+    "expires_in_seconds": 86400,
+    "user": {
+        "id": 1,
+        "user": "admin",
+        "rol_id": 1,
+        "role": "admin"
+    }
 }
 ```
 
@@ -167,7 +206,7 @@ Respuesta:
 
 ```json
 {
-  "message": "Sesion cerrada correctamente"
+    "message": "Sesion cerrada correctamente"
 }
 ```
 
@@ -193,7 +232,7 @@ Body crear/editar:
 
 ```json
 {
-  "nombre": "editor"
+    "nombre": "editor"
 }
 ```
 
@@ -204,6 +243,8 @@ GET /api/users
 POST /api/users
 PUT /api/users/{id}
 PATCH /api/users/{id}
+POST /api/users/{id}/soft-delete
+POST /api/users/{id}/restore
 DELETE /api/users/{id}
 ```
 
@@ -211,9 +252,9 @@ Body crear:
 
 ```json
 {
-  "user": "nuevo_admin",
-  "password": "123456",
-  "rol_id": 1
+    "user": "nuevo_admin",
+    "password": "123456",
+    "rol_id": 1
 }
 ```
 
@@ -221,35 +262,98 @@ Body editar:
 
 ```json
 {
-  "user": "usuario_editado",
-  "password": "nueva_clave",
-  "rol_id": 2
+    "user": "usuario_editado",
+    "password": "nueva_clave",
+    "rol_id": 2
 }
+```
+
+Soft delete:
+
+```http
+POST /api/users/{id}/soft-delete
+```
+
+Respuesta:
+
+```json
+{
+    "message": "Usuario desactivado correctamente"
+}
+```
+
+Restaurar:
+
+```http
+POST /api/users/{id}/restore
+```
+
+Delete definitivo:
+
+```http
+DELETE /api/users/{id}
 ```
 
 ### Categorias
 
 ```http
+GET /api/categorias
 POST /api/categorias
 PUT /api/categorias/{id}
 PATCH /api/categorias/{id}
+POST /api/categorias/{id}/soft-delete
+POST /api/categorias/{id}/restore
 DELETE /api/categorias/{id}
+```
+
+`GET /api/categorias` incluye la cantidad de perfiles activos por categoria:
+
+```json
+[
+    {
+        "id": 1,
+        "nombre": "Abogados",
+        "perfiles_count": 42
+    }
+]
 ```
 
 Body:
 
 ```json
 {
-  "nombre": "Medicos"
+    "nombre": "Medicos"
 }
+```
+
+Soft delete:
+
+```http
+POST /api/categorias/{id}/soft-delete
+```
+
+Restaurar:
+
+```http
+POST /api/categorias/{id}/restore
+```
+
+Delete definitivo:
+
+```http
+DELETE /api/categorias/{id}
 ```
 
 ### Perfiles
 
 ```http
+GET /api/perfiles?page=1&per_page=12
+GET /api/perfiles?categoria_id=1&page=1&per_page=12
 POST /api/perfiles
 PUT /api/perfiles/{id}
 PATCH /api/perfiles/{id}
+POST /api/perfiles/{id}/soft-delete
+POST /api/perfiles/{id}/restore
 DELETE /api/perfiles/{id}
 ```
 
@@ -257,15 +361,30 @@ Body crear/editar:
 
 ```json
 {
-  "nombre": "Estudio Legal Perez",
-  "descripcion": "Abogados especialistas",
-  "logo_base64": "base64-logo",
-  "categoria_id": 1,
-  "galeria": [
-    "base64-imagen-1",
-    "base64-imagen-2"
-  ]
+    "nombre": "Estudio Legal Perez",
+    "descripcion": "Abogados especialistas",
+    "logo_base64": "base64-logo",
+    "categoria_id": 1,
+    "galeria": ["base64-imagen-1", "base64-imagen-2"]
 }
 ```
 
 Si se envia `galeria` al editar, reemplaza las imagenes anteriores.
+
+Soft delete:
+
+```http
+POST /api/perfiles/{id}/soft-delete
+```
+
+Restaurar:
+
+```http
+POST /api/perfiles/{id}/restore
+```
+
+Delete definitivo:
+
+```http
+DELETE /api/perfiles/{id}
+```

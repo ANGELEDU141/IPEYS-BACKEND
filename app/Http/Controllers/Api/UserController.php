@@ -43,4 +43,21 @@ class UserController extends Controller
 
         return response()->json($result['body'], $result['status']);
     }
+
+      // Baja logica de usuario.
+    public function softDelete(Request $request, int $id): JsonResponse
+    {
+        $adminId = $request->attributes->get('auth_user')->id;
+        $result = $this->userService->softDelete($id, $adminId);
+
+        return response()->json($result['body'], $result['status']);
+    }
+
+    // Restauracion de usuario desactivado.
+    public function restore(int $id): JsonResponse
+    {
+        $result = $this->userService->restore($id);
+
+        return response()->json($result['body'], $result['status']);
+    }
 }
