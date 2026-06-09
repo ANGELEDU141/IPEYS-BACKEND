@@ -9,34 +9,54 @@ use Illuminate\Support\Facades\DB;
 class PerfilService
 {
     // Listado publico para grilla con busqueda por nombre, descripcion o categoria.
-    public function list(array $query)
-    {
-        return PerfilGrilla::query()
-            ->select('perfiles_grilla.*')
-            ->with('categoria:id,nombre')
-            ->join('categorias', 'categorias.id', '=', 'perfiles_grilla.categoria_id')
-            ->when(!empty($query['search']), function ($builder) use ($query) {
-                $search = '%' . $query['search'] . '%';
+   public function list(array $query)
+{
+    $perPage = min(max((int) ($query['per_page'] ?? 12), 1), 50);
 
-                $builder->where(function ($inner) use ($search) {
-                    $inner->where('perfiles_grilla.nombre', 'like', $search)
-                        ->orWhere('perfiles_grilla.descripcion', 'like', $search)
-                        ->orWhere('perfiles_grilla.direccion', 'like', $search)
-                        ->orWhere('perfiles_grilla.experiencia', 'like', $search)
-                        ->orWhere('perfiles_grilla.especializacion', 'like', $search)
-                        ->orWhere('perfiles_grilla.contacto', 'like', $search)
-                        ->orWhere('perfiles_grilla.locales', 'like', $search)
-                        ->orWhere('categorias.nombre', 'like', $search);
-                });
-            })
-            ->when(!empty($query['categoria_id']), function ($builder) use ($query) {
-                $builder->where('perfiles_grilla.categoria_id', $query['categoria_id']);
-            })
-            ->orderByDesc('perfiles_grilla.created_at')
-            ->orderByDesc('perfiles_grilla.id')
-            ->get()
-            ->map(fn (PerfilGrilla $perfil) => $this->publicGrid($perfil));
-    }
+    $paginator = PerfilGrilla::query()
+        ->select('perfiles_grilla.*')
+        ->with('categoria:id,nombre')
+        ->join('categorias', 'categorias.id', '=', 'perfiles_grilla.categoria_id')
+        ->when(!empty($query['search']), function ($builder) use ($query) {
+            $search = '%' . $query['search'] . '%';
+
+            $builder->where(function ($inner) use ($search) {
+                $inner->where('perfiles_grilla.nombre', 'like', $search)
+                    ->orWhere('perfiles_grilla.descripcion', 'like', $search)
+                    ->orWhere('perfiles_grilla.direccion', 'like', $search)
+                    ->orWhere('perfiles_grilla.experiencia', 'like', $search)
+                    ->orWhere('perfiles_grilla.especializacion', 'like', $search)
+                    ->orWhere('perfiles_grilla.contacto', 'like', $search)
+                    ->orWhere('perfiles_grilla.locales', 'like', $search)
+                    ->orWhere('categorias.nombre', 'like', $search);
+            });
+        })
+        ->when(!empty($query['categoria_id']), function ($builder) use ($query) {
+            $builder->where('perfiles_grilla.categoria_id', $query['categoria_id']);
+        })
+      ->orderBy('perfiles_grilla.created_at')
+            ->orderBy('perfiles_grilla.id')
+        ->paginate($perPage)
+        ->appends($query);
+
+    return [
+        'data' => $paginator->getCollection()->map(fn (PerfilGrilla $perfil) => $this->publicGrid($perfil))->values()->all(),
+        'meta' => [
+            'current_page' => $paginator->currentPage(),
+            'per_page' => $paginator->perPage(),
+            'total' => $paginator->total(),
+            'last_page' => $paginator->lastPage(),
+            'from' => $paginator->firstItem(),
+            'to' => $paginator->lastItem(),
+        ],
+        'links' => [
+            'first' => $paginator->url(1),
+            'last' => $paginator->url($paginator->lastPage()),
+            'prev' => $paginator->previousPageUrl(),
+            'next' => $paginator->nextPageUrl(),
+        ],
+    ];
+}
 
     // Detalle publico para modal.
     public function detail(int $id): array
