@@ -21,6 +21,11 @@ class PerfilService
                 $builder->where(function ($inner) use ($search) {
                     $inner->where('perfiles_grilla.nombre', 'like', $search)
                         ->orWhere('perfiles_grilla.descripcion', 'like', $search)
+                        ->orWhere('perfiles_grilla.direccion', 'like', $search)
+                        ->orWhere('perfiles_grilla.experiencia', 'like', $search)
+                        ->orWhere('perfiles_grilla.especializacion', 'like', $search)
+                        ->orWhere('perfiles_grilla.contacto', 'like', $search)
+                        ->orWhere('perfiles_grilla.locales', 'like', $search)
                         ->orWhere('categorias.nombre', 'like', $search);
                 });
             })
@@ -61,6 +66,11 @@ class PerfilService
                 'logo_base64' => $data['logo_base64'] ?? null,
                 'categoria_id' => $data['categoria_id'],
                 'creado_por' => $adminId,
+                'direccion' => $data['direccion'] ?? null,
+                'experiencia' => $data['experiencia'] ?? null,
+                'especializacion' => $data['especializacion'] ?? null,
+                'contacto' => $data['contacto'] ?? null,
+                'locales' => $data['locales'] ?? null,
             ]);
 
             $this->replaceGallery($perfil, $data['galeria'] ?? []);
@@ -92,6 +102,11 @@ class PerfilService
                 'descripcion' => array_key_exists('descripcion', $data) ? $data['descripcion'] : $perfil->descripcion,
                 'logo_base64' => array_key_exists('logo_base64', $data) ? $data['logo_base64'] : $perfil->logo_base64,
                 'categoria_id' => $data['categoria_id'] ?? $perfil->categoria_id,
+                'direccion' => array_key_exists('direccion', $data) ? $data['direccion'] : $perfil->direccion,
+                'experiencia' => array_key_exists('experiencia', $data) ? $data['experiencia'] : $perfil->experiencia,
+                'especializacion' => array_key_exists('especializacion', $data) ? $data['especializacion'] : $perfil->especializacion,
+                'contacto' => array_key_exists('contacto', $data) ? $data['contacto'] : $perfil->contacto,
+                'locales' => array_key_exists('locales', $data) ? $data['locales'] : $perfil->locales,
             ]);
 
             if (array_key_exists('galeria', $data)) {
@@ -155,6 +170,11 @@ class PerfilService
             'nombre' => $perfil->nombre,
             'descripcion' => $perfil->descripcion,
             'logo_base64' => $perfil->logo_base64,
+            'direccion' => $perfil->direccion,
+            'experiencia' => $perfil->experiencia,
+            'especializacion' => $perfil->especializacion,
+            'contacto' => $perfil->contacto,
+            'locales' => $perfil->locales,
             'categoria_id' => $perfil->categoria_id,
             'categoria_nombre' => $perfil->categoria?->nombre,
             'created_at' => $perfil->created_at,

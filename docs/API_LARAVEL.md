@@ -34,6 +34,11 @@ perfiles_grilla
 - nombre
 - descripcion
 - logo_base64
+- direccion
+- experiencia
+- especializacion
+- contacto
+- locales
 - categoria_id
 - creado_por
 - created_at
@@ -364,6 +369,11 @@ Body crear/editar:
     "nombre": "Estudio Legal Perez",
     "descripcion": "Abogados especialistas",
     "logo_base64": "base64-logo",
+    "direccion": "Calle Falsa 123",
+    "experiencia": "10 años en derecho civil",
+    "especializacion": "Abogados de familia",
+    "contacto": "telefono@correo.com",
+    "locales": "Sucursal Centro, Sucursal Norte",
     "categoria_id": 1,
     "galeria": ["base64-imagen-1", "base64-imagen-2"]
 }

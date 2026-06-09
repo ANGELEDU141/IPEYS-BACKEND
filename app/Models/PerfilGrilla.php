@@ -21,6 +21,11 @@ class PerfilGrilla extends Model
         'logo_base64',
         'categoria_id',
         'creado_por',
+        'direccion',
+        'experiencia',
+        'especializacion',
+        'contacto',
+        'locales',
         'created_at',
     ];
 
