@@ -14,9 +14,9 @@ class CategoriaController extends Controller
     }
 
     // Listado publico de categorias.
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json($this->categoriaService->list());
+        return response()->json($this->categoriaService->list($request->query()));
     }
 
     // Creacion protegida de categoria.

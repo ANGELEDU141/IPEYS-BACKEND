@@ -153,6 +153,38 @@ class PerfilService
         return ['status' => 200, 'body' => ['message' => 'Perfil eliminado correctamente']];
     }
 
+    // Baja logica de perfil.
+    public function softDelete(int $id): array
+    {
+        $perfil = PerfilGrilla::find($id);
+
+        if (!$perfil) {
+            return ['status' => 404, 'body' => ['message' => 'Perfil no encontrado']];
+        }
+
+        $perfil->delete();
+
+        return ['status' => 200, 'body' => ['message' => 'Perfil dado de baja correctamente']];
+    }
+
+    // Restauracion de perfil desactivado.
+    public function restore(int $id): array
+    {
+        $perfil = PerfilGrilla::withTrashed()->find($id);
+
+        if (!$perfil) {
+            return ['status' => 404, 'body' => ['message' => 'Perfil no encontrado']];
+        }
+
+        if (!$perfil->trashed()) {
+            return ['status' => 400, 'body' => ['message' => 'El perfil no está dado de baja']];
+        }
+
+        $perfil->restore();
+
+        return ['status' => 200, 'body' => ['message' => 'Perfil restaurado correctamente']];
+    }
+
     private function validatePerfil(array $data, bool $partial = false): ?string
     {
         if (!$partial && empty($data['nombre'])) {
