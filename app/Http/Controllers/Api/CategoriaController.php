@@ -59,4 +59,21 @@ class CategoriaController extends Controller
 
         return response()->json($result['body'], $result['status']);
     }
+
+    // Detalle publico de categoria por id.
+    public function show(int $id): JsonResponse
+    {
+        $result = $this->categoriaService->detail($id);
+
+        return response()->json($result['body'], $result['status']);
+    }
+
+    // Busqueda publica por nombre (query param `q`).
+    public function search(Request $request): JsonResponse
+    {
+        $q = $request->query('q', '');
+        $result = $this->categoriaService->search($q);
+
+        return response()->json($result['body'], $result['status']);
+    }
 }

@@ -14,6 +14,8 @@ Route::get('/health', fn () => response()->json(['status' => 'ok']));
 Route::post('/auth/login', [AuthController::class, 'login']);
 
 // Rutas publicas consumidas por la grilla y el modal.
+Route::get('/categorias/search', [CategoriaController::class, 'search']);
+Route::get('/categorias/{id}', [CategoriaController::class, 'show']);
 Route::get('/categorias', [CategoriaController::class, 'index']);
 Route::get('/perfiles', [PerfilController::class, 'index']);
 Route::get('/perfiles/{id}', [PerfilController::class, 'show']);

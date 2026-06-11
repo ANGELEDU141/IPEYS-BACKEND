@@ -122,4 +122,37 @@ class CategoriaService
 
         return ['status' => 200, 'body' => ['message' => 'Categoria restaurada correctamente']];
     }
+
+    // Detalle publico de categoria.
+    public function detail(int $id): array
+    {
+        $categoria = Categoria::find($id);
+
+        if (!$categoria) {
+            return ['status' => 404, 'body' => ['message' => 'Categoria no encontrada']];
+        }
+
+        return ['status' => 200, 'body' => $categoria];
+    }
+
+    // Busqueda publica por nombre (autocomplete/simple search).
+    public function search(string $term = ''): array
+    {
+        $term = trim($term);
+
+        if ($term === '') {
+            return ['status' => 200, 'body' => []];
+        }
+
+        $results = Categoria::where('nombre', 'like', "%{$term}%")
+            ->orderBy('nombre')
+            ->limit(20)
+            ->get()
+            ->map(fn (Categoria $c) => [
+                'id' => $c->id,
+                'nombre' => $c->nombre,
+            ])->values()->all();
+
+        return ['status' => 200, 'body' => $results];
+    }
 }
