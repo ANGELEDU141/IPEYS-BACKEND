@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Categoria;
+use App\Models\PerfilGrilla; // <-- IMPORTANTE: Importar el modelo de perfiles para el conteo
 
 class CategoriaService
 {
@@ -74,35 +75,49 @@ class CategoriaService
         }
     }
 
-    // Eliminacion protegida de categorias.
+    // Eliminacion FISICA y permanente de categorias.
     public function delete(int $id): array
     {
-        $categoria = Categoria::find($id);
+        // Buscamos con withTrashed() por si quieren eliminar físicamente una que ya estaba en papelera
+        $categoria = Categoria::withTrashed()->find($id);
 
         if (!$categoria) {
             return ['status' => 404, 'body' => ['message' => 'Categoria no encontrada']];
         }
 
+        // 1. BLINDAJE: Validar si tiene perfiles asociados
+        $errorValidacion = $this->verificarPerfilesAsociados($id);
+        if ($errorValidacion) {
+            return $errorValidacion;
+        }
+
         try {
-            $categoria->delete();
-            return ['status' => 200, 'body' => ['message' => 'Categoria eliminada correctamente']];
+            // Como usarás SoftDeletes, para borrar definitivo de la DB se usa forceDelete()
+            $categoria->forceDelete();
+            return ['status' => 200, 'body' => ['message' => 'Categoria eliminada permanentemente de la base de datos']];
         } catch (\Throwable) {
-            return ['status' => 409, 'body' => ['message' => 'No se puede eliminar una categoria con perfiles asociados']];
+            return ['status' => 409, 'body' => ['message' => 'No se pudo procesar la eliminación destructiva de la categoria']];
         }
     }
 
-    // Baja logica de categoria.
+    // Baja logica de categoria (Soft Delete).
     public function softDelete(int $id): array
     {
         $categoria = Categoria::find($id);
 
         if (!$categoria) {
-            return ['status' => 404, 'body' => ['message' => 'Categoria no encontrada']];
+            return ['status' => 404, 'body' => ['message' => 'Categoria no encontrada o ya archivada']];
         }
 
-        $categoria->delete();
+        // 1. BLINDAJE: Validar si tiene perfiles asociados
+        $errorValidacion = $this->verificarPerfilesAsociados($id);
+        if ($errorValidacion) {
+            return $errorValidacion;
+        }
 
-        return ['status' => 200, 'body' => ['message' => 'Categoria dada de baja correctamente']];
+        $categoria->delete(); // Guarda la fecha en deleted_at
+
+        return ['status' => 200, 'body' => ['message' => 'Categoria dada de baja y enviada a la papelera correctamente']];
     }
 
     // Restauracion de categoria desactivada.
@@ -154,5 +169,27 @@ class CategoriaService
             ])->values()->all();
 
         return ['status' => 200, 'body' => $results];
+    }
+
+    /**
+     * Valida si existen perfiles activos o archivados vinculados a esta categoría.
+     */
+    private function verificarPerfilesAsociados(int $categoriaId): ?array
+    {
+        // Contamos perfiles normales y los que están en la papelera (withTrashed)
+        $conteo = PerfilGrilla::withTrashed()
+            ->where('categoria_id', $categoriaId)
+            ->count();
+
+        if ($conteo > 0) {
+            return [
+                'status' => 400, // Bad Request controladísimo para tu frontend React
+                'body' => [
+                    'message' => "No se puede eliminar la categoría porque tiene {$conteo} perfil(es) asociado(s) (incluyendo en papelera)."
+                ]
+            ];
+        }
+
+        return null; // Todo limpio, puede proceder con el borrado
     }
 }
