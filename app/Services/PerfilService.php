@@ -91,6 +91,7 @@ class PerfilService
                 'especializacion' => $data['especializacion'] ?? null,
                 'contacto' => $data['contacto'] ?? null,
                 'locales' => $data['locales'] ?? null,
+                'link' => $data['link'] ?? null,
             ]);
 
             $this->replaceGallery($perfil, $data['galeria'] ?? []);
@@ -127,6 +128,7 @@ class PerfilService
                 'especializacion' => array_key_exists('especializacion', $data) ? $data['especializacion'] : $perfil->especializacion,
                 'contacto' => array_key_exists('contacto', $data) ? $data['contacto'] : $perfil->contacto,
                 'locales' => array_key_exists('locales', $data) ? $data['locales'] : $perfil->locales,
+                'link' => array_key_exists('link', $data) ? $data['link'] : $perfil->link,
             ]);
 
             if (array_key_exists('galeria', $data)) {
@@ -227,6 +229,7 @@ class PerfilService
             'especializacion' => $perfil->especializacion,
             'contacto' => $perfil->contacto,
             'locales' => $perfil->locales,
+            'link' => $perfil->link,
             'categoria_id' => $perfil->categoria_id,
             'categoria_nombre' => $perfil->categoria?->nombre,
             'created_at' => $perfil->created_at,

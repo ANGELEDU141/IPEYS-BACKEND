@@ -26,6 +26,7 @@ class PerfilGrilla extends Model
         'especializacion',
         'contacto',
         'locales',
+        'link',
         'created_at',
     ];
 
