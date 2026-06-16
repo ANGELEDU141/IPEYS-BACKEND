@@ -72,8 +72,9 @@ class CategoriaController extends Controller
     public function search(Request $request): JsonResponse
     {
         $q = $request->query('q', '');
-        $result = $this->categoriaService->search($q);
+  $result = $this->categoriaService->search($request->query());
 
-        return response()->json($result['body'], $result['status']);
+    // Como la respuesta ya viene estructurada idéntica a list, el estatus es 200 directo
+    return response()->json($result, 200);
     }
 }

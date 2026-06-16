@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Categoria;
-use App\Models\PerfilGrilla; // <-- IMPORTANTE: Importar el modelo de perfiles para el conteo
+use App\Models\PerfilGrilla; 
 
 class CategoriaService
 {
@@ -78,21 +78,18 @@ class CategoriaService
     // Eliminacion FISICA y permanente de categorias.
     public function delete(int $id): array
     {
-        // Buscamos con withTrashed() por si quieren eliminar físicamente una que ya estaba en papelera
         $categoria = Categoria::withTrashed()->find($id);
 
         if (!$categoria) {
             return ['status' => 404, 'body' => ['message' => 'Categoria no encontrada']];
         }
 
-        // 1. BLINDAJE: Validar si tiene perfiles asociados
         $errorValidacion = $this->verificarPerfilesAsociados($id);
         if ($errorValidacion) {
             return $errorValidacion;
         }
 
         try {
-            // Como usarás SoftDeletes, para borrar definitivo de la DB se usa forceDelete()
             $categoria->forceDelete();
             return ['status' => 200, 'body' => ['message' => 'Categoria eliminada permanentemente de la base de datos']];
         } catch (\Throwable) {
@@ -109,13 +106,12 @@ class CategoriaService
             return ['status' => 404, 'body' => ['message' => 'Categoria no encontrada o ya archivada']];
         }
 
-        // 1. BLINDAJE: Validar si tiene perfiles asociados
         $errorValidacion = $this->verificarPerfilesAsociados($id);
         if ($errorValidacion) {
             return $errorValidacion;
         }
 
-        $categoria->delete(); // Guarda la fecha en deleted_at
+        $categoria->delete(); 
 
         return ['status' => 200, 'body' => ['message' => 'Categoria dada de baja y enviada a la papelera correctamente']];
     }
@@ -150,25 +146,44 @@ class CategoriaService
         return ['status' => 200, 'body' => $categoria];
     }
 
-    // Busqueda publica por nombre (autocomplete/simple search).
-    public function search(string $term = ''): array
+    // Busqueda publica por nombre CON PAGINACIÓN IDÉNTICA A LIST.
+    public function search(array $query = []): array
     {
-        $term = trim($term);
+        $term = trim($query['q'] ?? '');
+        $perPage = min(max((int) ($query['per_page'] ?? 10), 1), 50);
 
-        if ($term === '') {
-            return ['status' => 200, 'body' => []];
+        // Iniciamos el query builder incluyendo el conteo de perfiles
+        $queryBuilder = Categoria::withCount('perfiles')->orderBy('nombre');
+
+        // Si el término contiene texto, aplicamos el filtro
+        if ($term !== '') {
+            $queryBuilder->where('nombre', 'like', "%{$term}%");
         }
 
-        $results = Categoria::where('nombre', 'like', "%{$term}%")
-            ->orderBy('nombre')
-            ->limit(20)
-            ->get()
-            ->map(fn (Categoria $c) => [
-                'id' => $c->id,
-                'nombre' => $c->nombre,
-            ])->values()->all();
+        // Paginamos manteniendo los parámetros en las urls de links (q, per_page, etc.)
+        $paginator = $queryBuilder->paginate($perPage)->appends($query);
 
-        return ['status' => 200, 'body' => $results];
+        return [
+            'data' => $paginator->getCollection()->map(fn (Categoria $categoria) => [
+                'id' => $categoria->id,
+                'nombre' => $categoria->nombre,
+                'perfiles_count' => $categoria->perfiles_count,
+            ])->values()->all(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
+            'links' => [
+                'first' => $paginator->url(1),
+                'last' => $paginator->url($paginator->lastPage()),
+                'prev' => $paginator->previousPageUrl(),
+                'next' => $paginator->nextPageUrl(),
+            ],
+        ];
     }
 
     /**
@@ -176,20 +191,17 @@ class CategoriaService
      */
     private function verificarPerfilesAsociados(int $categoriaId): ?array
     {
-        // Contamos perfiles normales y los que están en la papelera (withTrashed)
-        $conteo = PerfilGrilla::withTrashed()
-            ->where('categoria_id', $categoriaId)
+     $conteo = PerfilGrilla::where('categoria_id', $categoriaId)
             ->count();
-
         if ($conteo > 0) {
             return [
-                'status' => 400, // Bad Request controladísimo para tu frontend React
+                'status' => 400, 
                 'body' => [
-                    'message' => "No se puede eliminar la categoría porque tiene {$conteo} perfil(es) asociado(s) (incluyendo en papelera)."
+                    'message' => "No se puede eliminar la categoría porque tiene perfil(es) asociado(s) ."
                 ]
             ];
         }
 
-        return null; // Todo limpio, puede proceder con el borrado
+        return null; 
     }
 }
