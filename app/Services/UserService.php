@@ -68,6 +68,38 @@ class UserService
         }
     }
 
+    public function softDelete(int $id, int $adminId): array
+{
+    if ($id === $adminId) {
+        return [
+            'status' => 400,
+            'body' => [
+                'message' => 'No puedes desactivar tu propio usuario'
+            ]
+        ];
+    }
+
+    $user = User::find($id);
+
+    if (!$user) {
+        return [
+            'status' => 404,
+            'body' => [
+                'message' => 'Usuario no encontrado'
+            ]
+        ];
+    }
+
+    $user->delete();
+
+    return [
+        'status' => 200,
+        'body' => [
+            'message' => 'Usuario desactivado correctamente'
+        ]
+    ];
+}
+
     // Eliminacion administrativa de usuarios.
     public function delete(int $id, int $adminId): array
     {
@@ -82,12 +114,44 @@ class UserService
         }
 
         try {
-            $user->delete();
+           $user->forceDelete();
             return ['status' => 200, 'body' => ['message' => 'Usuario eliminado correctamente']];
         } catch (\Throwable) {
             return ['status' => 409, 'body' => ['message' => 'No se puede eliminar un usuario con perfiles asociados']];
         }
     }
+
+    public function restore(int $id): array
+{
+    $user = User::withTrashed()->find($id);
+
+    if (!$user) {
+        return [
+            'status' => 404,
+            'body' => [
+                'message' => 'Usuario no encontrado'
+            ]
+        ];
+    }
+
+    if (!$user->trashed()) {
+        return [
+            'status' => 400,
+            'body' => [
+                'message' => 'El usuario no está desactivado'
+            ]
+        ];
+    }
+
+    $user->restore();
+
+    return [
+        'status' => 200,
+        'body' => [
+            'message' => 'Usuario restaurado correctamente'
+        ]
+    ];
+}
 
     private function publicUser(User $user): array
     {
