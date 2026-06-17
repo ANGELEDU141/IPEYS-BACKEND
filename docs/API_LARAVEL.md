@@ -1,67 +1,28 @@
-# API Laravel IPEYS Backend
+# API Laravel IPEYS Backend v2
 
 ## Resumen
 
-Este proyecto replica la API del backend Node en Laravel 12, usando MySQL y una estructura por capas:
+Backend desarrollado en Laravel 12 con MySQL.
+
+Arquitectura:
 
 ```txt
-routes/api.php -> Controllers -> Services -> Models -> Migrations
+routes/api.php
+    ↓
+Controllers
+    ↓
+Services
+    ↓
+Models
+    ↓
+Migrations
 ```
 
-## Base De Datos
+---
 
-Tablas principales:
+# Variables De Entorno
 
-```txt
-roles
-- id
-- nombre
-
-users
-- id
-- user
-- password
-- rol_id
-- deleted_at
-
-categorias
-- id
-- nombre
-- deleted_at
-
-perfiles_grilla
-- id
-- nombre
-- descripcion
-- logo_base64
-- direccion
-- experiencia
-- especializacion
-- contacto
-- locales
-- categoria_id
-- creado_por
-- created_at
-- deleted_at
-
-galeria_modales
-- id
-- perfil_id
-- imagen_base64
-
-api_tokens
-- id
-- user_id
-- token_hash
-- expires_at
-- revoked_at
-- created_at
-- updated_at
-```
-
-## Variables De Entorno
-
-```txt
+```env
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
@@ -72,89 +33,481 @@ DB_PASSWORD=
 API_TOKEN_TTL_MINUTES=1440
 ```
 
-`API_TOKEN_TTL_MINUTES` no debe pasar de 1440 minutos, equivalente a 24 horas.
+`API_TOKEN_TTL_MINUTES` tiene un máximo recomendado de 1440 minutos (24 horas).
 
-## Arranque
+---
+
+# Instalación
 
 ```bash
+composer install
+
 php artisan migrate --seed
+
 php artisan serve
 ```
 
-Si MySQL usa password, actualizar `.env` antes de migrar.
+Servidor:
 
-## Credenciales Iniciales
+```txt
+http://localhost:8000
+```
+
+---
+
+# Credenciales Iniciales
 
 ```txt
 admin / admin123
 user / user123
 ```
 
-Solo el usuario con rol `admin` puede iniciar sesion.
+Solo usuarios con rol `admin` pueden iniciar sesión.
 
-## Rutas Publicas
+---
+
+# Autenticación
+
+La API utiliza tokens Bearer almacenados en la tabla:
+
+```txt
+api_tokens
+```
+
+Todas las rutas administrativas requieren:
+
+```http
+Authorization: Bearer TOKEN
+```
+
+---
+
+# Health Check
+
+## Verificar Estado API
 
 ```http
 GET /api/health
-GET /api/categorias
-GET /api/perfiles
-GET /api/perfiles/{id}
 ```
 
-### Buscar Perfiles
+Respuesta:
+
+```json
+{
+    "status": "ok"
+}
+```
+
+---
+
+# Categorías
+
+## Listar Categorías
+
+Ruta pública.
 
 ```http
-GET /api/perfiles?search=abogado
-GET /api/perfiles?search=estudio&categoria_id=1
-GET /api/perfiles?page=2&per_page=12
-GET /api/perfiles?categoria_id=1&page=1&per_page=24
+GET /api/categorias
 ```
 
-La busqueda revisa:
+Parámetros:
 
-```txt
-nombre del perfil
-descripcion
-nombre de categoria
+```http
+?page=1
+&per_page=12
 ```
 
-La respuesta de perfiles esta paginada:
+Respuesta:
 
 ```json
 {
     "data": [
         {
             "id": 1,
-            "nombre": "Estudio Legal Perez",
-            "descripcion": "Abogados especialistas",
-            "logo_base64": "base64-logo",
-            "categoria_id": 1,
-            "categoria_nombre": "Abogados",
-            "created_at": "2026-06-08T00:00:00.000000Z"
+            "nombre": "Abogados",
+            "perfiles_count": 42
         }
     ],
     "meta": {
         "current_page": 1,
         "per_page": 12,
-        "total": 120,
-        "last_page": 10,
+        "total": 100,
+        "last_page": 9,
         "from": 1,
         "to": 12
     },
     "links": {
-        "first": "http://localhost:8000/api/perfiles?page=1",
-        "last": "http://localhost:8000/api/perfiles?page=10",
+        "first": "...",
+        "last": "...",
         "prev": null,
-        "next": "http://localhost:8000/api/perfiles?page=2"
+        "next": "..."
     }
 }
 ```
 
-`per_page` acepta de 1 a 50 elementos. Si no se envia, usa 12.
+---
 
-## Autenticacion Admin
+## Buscar Categorías
 
-### Login
+Ruta pública.
+
+```http
+GET /api/categorias/search
+```
+
+Parámetros:
+
+```http
+?q=abogados
+&page=1
+&per_page=10
+```
+
+Busca coincidencias por:
+
+```txt
+nombre
+```
+
+Respuesta:
+
+```json
+{
+    "data": [
+        {
+            "id": 1,
+            "nombre": "Abogados",
+            "perfiles_count": 42
+        }
+    ]
+}
+```
+
+---
+
+## Obtener Categoría
+
+```http
+GET /api/categorias/{id}
+```
+
+Respuesta:
+
+```json
+{
+    "id": 1,
+    "nombre": "Abogados"
+}
+```
+
+---
+
+## Crear Categoría
+
+```http
+POST /api/categorias
+```
+
+Body:
+
+```json
+{
+    "nombre": "Médicos"
+}
+```
+
+---
+
+## Actualizar Categoría
+
+```http
+PUT /api/categorias/{id}
+PATCH /api/categorias/{id}
+```
+
+Body:
+
+```json
+{
+    "nombre": "Médicos Especialistas"
+}
+```
+
+---
+
+## Desactivar Categoría
+
+```http
+POST /api/categorias/{id}/soft-delete
+```
+
+---
+
+## Restaurar Categoría
+
+```http
+POST /api/categorias/{id}/restore
+```
+
+---
+
+## Eliminar Categoría Permanentemente
+
+```http
+DELETE /api/categorias/{id}
+```
+
+---
+
+# Perfiles
+
+## Listar Perfiles
+
+Ruta pública.
+
+```http
+GET /api/perfiles
+```
+
+Parámetros:
+
+```http
+?search=abogado
+&categoria_id=1
+&page=1
+&per_page=12
+```
+
+Campos incluidos en la búsqueda:
+
+```txt
+nombre
+descripcion
+direccion
+experiencia
+especializacion
+contacto
+locales
+nombre de categoria
+```
+
+Respuesta:
+
+```json
+{
+    "data": [],
+    "meta": {},
+    "links": {}
+}
+```
+
+---
+
+## Obtener Perfil
+
+```http
+GET /api/perfiles/{id}
+```
+
+Respuesta:
+
+```json
+{
+    "id": 1,
+    "nombre": "Estudio Legal Perez",
+    "descripcion": "Especialistas en derecho civil",
+    "logo_base64": "...",
+    "direccion": "...",
+    "experiencia": "...",
+    "especializacion": "...",
+    "contacto": "...",
+    "locales": "...",
+    "link": "https://sitio-web.com",
+    "categoria": {
+        "id": 1,
+        "nombre": "Abogados"
+    },
+    "galeria": [
+        {
+            "id": 1,
+            "imagen_base64": "..."
+        }
+    ]
+}
+```
+
+---
+
+## Crear Perfil
+
+```http
+POST /api/perfiles
+```
+
+Body:
+
+```json
+{
+    "nombre": "Estudio Legal Perez",
+    "descripcion": "Abogados especialistas",
+    "logo_base64": "base64-logo",
+    "direccion": "Calle Falsa 123",
+    "experiencia": "10 años",
+    "especializacion": "Derecho Familiar",
+    "contacto": "correo@empresa.com",
+    "locales": "Sucursal Centro",
+    "link": "https://empresa.com",
+    "categoria_id": 1,
+    "galeria": ["base64-imagen-1", "base64-imagen-2"]
+}
+```
+
+---
+
+## Actualizar Perfil
+
+```http
+PUT /api/perfiles/{id}
+PATCH /api/perfiles/{id}
+```
+
+Si se envía:
+
+```json
+{
+  "galeria": [...]
+}
+```
+
+la galería anterior será reemplazada completamente.
+
+---
+
+## Desactivar Perfil
+
+```http
+POST /api/perfiles/{id}/soft-delete
+```
+
+---
+
+## Restaurar Perfil
+
+```http
+POST /api/perfiles/{id}/restore
+```
+
+---
+
+## Eliminar Perfil Permanentemente
+
+```http
+DELETE /api/perfiles/{id}
+```
+
+---
+
+# Roles
+
+## Listar Roles
+
+```http
+GET /api/roles
+```
+
+## Crear Rol
+
+```http
+POST /api/roles
+```
+
+Body:
+
+```json
+{
+    "nombre": "editor"
+}
+```
+
+## Actualizar Rol
+
+```http
+PUT /api/roles/{id}
+PATCH /api/roles/{id}
+```
+
+## Eliminar Rol
+
+```http
+DELETE /api/roles/{id}
+```
+
+---
+
+# Usuarios
+
+## Listar Usuarios
+
+```http
+GET /api/users
+```
+
+## Crear Usuario
+
+```http
+POST /api/users
+```
+
+Body:
+
+```json
+{
+    "user": "nuevo_admin",
+    "password": "123456",
+    "rol_id": 1
+}
+```
+
+## Actualizar Usuario
+
+```http
+PUT /api/users/{id}
+PATCH /api/users/{id}
+```
+
+Body:
+
+```json
+{
+    "user": "usuario_editado",
+    "password": "nueva_clave",
+    "rol_id": 2
+}
+```
+
+## Desactivar Usuario
+
+```http
+POST /api/users/{id}/soft-delete
+```
+
+## Restaurar Usuario
+
+```http
+POST /api/users/{id}/restore
+```
+
+## Eliminar Usuario Permanentemente
+
+```http
+DELETE /api/users/{id}
+```
+
+---
+
+# Sesión Administrativa
+
+## Login
 
 ```http
 POST /api/auth/login
@@ -175,7 +528,7 @@ Respuesta:
 {
     "token": "TOKEN",
     "token_type": "Bearer",
-    "expires_at": "fecha",
+    "expires_at": "2026-06-30T12:00:00Z",
     "expires_in_seconds": 86400,
     "user": {
         "id": 1,
@@ -186,25 +539,28 @@ Respuesta:
 }
 ```
 
-### Validar Token
+---
+
+## Validar Token
 
 ```http
 GET /api/auth/validate
-Authorization: Bearer <TOKEN>
 ```
 
-### Ver Tiempo De Sesion
+---
+
+## Información De Sesión
 
 ```http
 GET /api/auth/session
-Authorization: Bearer <TOKEN>
 ```
 
-### Logout
+---
+
+## Logout
 
 ```http
 POST /api/auth/logout
-Authorization: Bearer <TOKEN>
 ```
 
 Respuesta:
@@ -215,186 +571,41 @@ Respuesta:
 }
 ```
 
-## Rutas Protegidas Admin
+---
 
-Todas requieren:
+# Paginación
+
+Todas las rutas paginadas retornan:
+
+```json
+{
+    "data": [],
+    "meta": {
+        "current_page": 1,
+        "per_page": 12,
+        "total": 100,
+        "last_page": 9,
+        "from": 1,
+        "to": 12
+    },
+    "links": {
+        "first": "...",
+        "last": "...",
+        "prev": null,
+        "next": "..."
+    }
+}
+```
+
+Restricciones:
 
 ```txt
-Authorization: Bearer <TOKEN>
+per_page mínimo: 1
+per_page máximo: 50
 ```
 
-### Roles
+Valor por defecto:
 
-```http
-GET /api/roles
-POST /api/roles
-PUT /api/roles/{id}
-PATCH /api/roles/{id}
-DELETE /api/roles/{id}
-```
-
-Body crear/editar:
-
-```json
-{
-    "nombre": "editor"
-}
-```
-
-### Usuarios
-
-```http
-GET /api/users
-POST /api/users
-PUT /api/users/{id}
-PATCH /api/users/{id}
-POST /api/users/{id}/soft-delete
-POST /api/users/{id}/restore
-DELETE /api/users/{id}
-```
-
-Body crear:
-
-```json
-{
-    "user": "nuevo_admin",
-    "password": "123456",
-    "rol_id": 1
-}
-```
-
-Body editar:
-
-```json
-{
-    "user": "usuario_editado",
-    "password": "nueva_clave",
-    "rol_id": 2
-}
-```
-
-Soft delete:
-
-```http
-POST /api/users/{id}/soft-delete
-```
-
-Respuesta:
-
-```json
-{
-    "message": "Usuario desactivado correctamente"
-}
-```
-
-Restaurar:
-
-```http
-POST /api/users/{id}/restore
-```
-
-Delete definitivo:
-
-```http
-DELETE /api/users/{id}
-```
-
-### Categorias
-
-```http
-GET /api/categorias
-POST /api/categorias
-PUT /api/categorias/{id}
-PATCH /api/categorias/{id}
-POST /api/categorias/{id}/soft-delete
-POST /api/categorias/{id}/restore
-DELETE /api/categorias/{id}
-```
-
-`GET /api/categorias` incluye la cantidad de perfiles activos por categoria:
-
-```json
-[
-    {
-        "id": 1,
-        "nombre": "Abogados",
-        "perfiles_count": 42
-    }
-]
-```
-
-Body:
-
-```json
-{
-    "nombre": "Medicos"
-}
-```
-
-Soft delete:
-
-```http
-POST /api/categorias/{id}/soft-delete
-```
-
-Restaurar:
-
-```http
-POST /api/categorias/{id}/restore
-```
-
-Delete definitivo:
-
-```http
-DELETE /api/categorias/{id}
-```
-
-### Perfiles
-
-```http
-GET /api/perfiles?page=1&per_page=12
-GET /api/perfiles?categoria_id=1&page=1&per_page=12
-POST /api/perfiles
-PUT /api/perfiles/{id}
-PATCH /api/perfiles/{id}
-POST /api/perfiles/{id}/soft-delete
-POST /api/perfiles/{id}/restore
-DELETE /api/perfiles/{id}
-```
-
-Body crear/editar:
-
-```json
-{
-    "nombre": "Estudio Legal Perez",
-    "descripcion": "Abogados especialistas",
-    "logo_base64": "base64-logo",
-    "direccion": "Calle Falsa 123",
-    "experiencia": "10 años en derecho civil",
-    "especializacion": "Abogados de familia",
-    "contacto": "telefono@correo.com",
-    "locales": "Sucursal Centro, Sucursal Norte",
-    "categoria_id": 1,
-    "galeria": ["base64-imagen-1", "base64-imagen-2"]
-}
-```
-
-Si se envia `galeria` al editar, reemplaza las imagenes anteriores.
-
-Soft delete:
-
-```http
-POST /api/perfiles/{id}/soft-delete
-```
-
-Restaurar:
-
-```http
-POST /api/perfiles/{id}/restore
-```
-
-Delete definitivo:
-
-```http
-DELETE /api/perfiles/{id}
+```txt
+12
 ```
