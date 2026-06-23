@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\URL;
 
 class GaleriaModal extends Model
 {
@@ -13,10 +14,14 @@ class GaleriaModal extends Model
 
     protected $fillable = [
         'perfil_id',
-        'imagen_base64',
+        'imagen', // <-- Cambiado de imagen_base64 a imagen
     ];
 
-    // Perfil al que pertenece esta imagen.
+    public function getImagenAttribute($value)
+    {
+        return $value ? URL::to($value) : null;
+    }
+
     public function perfil(): BelongsTo
     {
         return $this->belongsTo(PerfilGrilla::class, 'perfil_id');

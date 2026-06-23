@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\URL;
 
 class PerfilGrilla extends Model
 {
@@ -18,7 +19,7 @@ class PerfilGrilla extends Model
     protected $fillable = [
         'nombre',
         'descripcion',
-        'logo_base64',
+        'logo',
         'categoria_id',
         'creado_por',
         'direccion',
@@ -40,6 +41,12 @@ class PerfilGrilla extends Model
     public function creador(): BelongsTo
     {
         return $this->belongsTo(User::class, 'creado_por');
+    }
+
+    // Accesor para el logo: convierte la ruta de BD en URL completa
+    public function getLogoAttribute($value)
+    {
+        return $value ? URL::to($value) : null;
     }
 
     // Imagenes que se muestran en el modal.

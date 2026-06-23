@@ -46,6 +46,14 @@ return [
             'throw' => false,
             'report' => false,
         ],
+        'directo_publico' => [
+            'driver' => 'local',
+            // public_path() es mágico: en tu PC apuntará a la carpeta "public", 
+            // y en tu cPanel apuntará a "public_html" (si está bien enlazado).
+            'root' => public_path('uploads'), 
+            'url' => env('APP_URL').'/uploads',
+            'visibility' => 'public',
+        ],
 
         's3' => [
             'driver' => 's3',
