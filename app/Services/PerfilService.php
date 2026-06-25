@@ -112,46 +112,50 @@ class PerfilService
 
 public function update(int $id, array $data): array
 {
-    $perfil = PerfilGrilla::find($id);
+    $perfil = PerfilGrilla::with('galeria')->find($id);
 
     if (!$perfil) {
         return ['status' => 404, 'body' => ['message' => 'Perfil no encontrado']];
     }
 
-    $error = $this->validatePerfil($data, true);
-    if ($error) {
-        return ['status' => 400, 'body' => ['message' => $error]];
-    }
-
     $perfil = DB::transaction(function () use ($perfil, $data) {
-        // 1. Preparamos los datos para la actualización
         $datosParaActualizar = $data;
-        unset($datosParaActualizar['galeria']); // La galería se gestiona aparte
+        unset($datosParaActualizar['galeria']);
 
-        // 2. Procesamos el logo si se envió uno nuevo
+        // 1. Lógica del LOGO (si se envía uno nuevo)
         if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFile) {
-            // Borrar el archivo viejo si existe
-            if ($perfil->logo) {
-                $rutaVieja = public_path($perfil->logo);
-                if (\Illuminate\Support\Facades\File::exists($rutaVieja)) {
-                    \Illuminate\Support\Facades\File::delete($rutaVieja);
-                }
+            // Borrar el viejo usando la ruta limpia
+            if ($perfil->logo && File::exists(public_path($perfil->logo))) {
+                File::delete(public_path($perfil->logo));
             }
             
-            // Guardar el nuevo
             $rutaNueva = $data['logo']->store('logos', 'directo_publico');
             $datosParaActualizar['logo'] = 'uploads/' . $rutaNueva;
-        } else {
-            // Si no se envió logo, quitamos la clave para que no intente sobrescribir con null
-            unset($datosParaActualizar['logo']);
         }
 
-        // 3. Actualizamos el perfil usando el array filtrado
         $perfil->update($datosParaActualizar);
 
-        // 4. Lógica de Galería
+        // 2. Lógica de GALERÍA (reemplazo total)
         if (array_key_exists('galeria', $data)) {
-            $this->replaceGallery($perfil, $data['galeria']);
+            // Como ya no tienes el accesor molestando, 
+            // $perfil->galeria contiene las rutas 'uploads/...' directamente.
+            
+            // Borramos todas las fotos actuales del disco
+            foreach ($perfil->galeria as $foto) {
+                if (File::exists(public_path($foto->imagen))) {
+                    File::delete(public_path($foto->imagen));
+                }
+            }
+
+            // Borramos los registros de la BD y guardamos los nuevos
+            $perfil->galeria()->delete();
+            
+            foreach ($data['galeria'] as $archivo) {
+                if ($archivo instanceof \Illuminate\Http\UploadedFile) {
+                    $ruta = $archivo->store('galerias', 'directo_publico');
+                    $perfil->galeria()->create(['imagen' => 'uploads/' . $ruta]);
+                }
+            }
         }
 
         return $perfil->load(['categoria:id,nombre', 'galeria']);
@@ -242,29 +246,23 @@ public function delete(int $id): array
 
 private function replaceGallery(PerfilGrilla $perfil, array $galeria): void
 {
-    // 1. CARGA LAS FOTOS ANTES DE BORRAR NADA
-    // Si no las guardamos en una variable, al hacer delete() en el paso 3, las perderás.
     $fotosViejas = $perfil->galeria; 
 
-    // 2. BORRADO FÍSICO
     foreach ($fotosViejas as $foto) {
-        // Obtenemos la ruta limpia (quitando cualquier URL si existiera)
-        $rutaLimpia = str_replace(url('/'), '', $foto->imagen);
-        $rutaLimpia = ltrim($rutaLimpia, '/');
-        
-        $rutaFisica = public_path($rutaLimpia);
+        $nombreBD = basename($foto->imagen);
+        $rutaFisica = public_path('uploads/galerias/' . $nombreBD);
+
+        // LOG DE DEPURACIÓN (Revisa tu storage/logs/laravel.log)
+        Log::info("Buscando para borrar: " . $rutaFisica);
+        Log::info("¿Existe el archivo?: " . (File::exists($rutaFisica) ? 'SÍ' : 'NO'));
 
         if (File::exists($rutaFisica)) {
             File::delete($rutaFisica);
-        } else {
-            Log::warning("No se encontró el archivo físico para borrar: " . $rutaFisica);
         }
     }
 
-    // 3. AHORA SÍ: Borramos los registros de la base de datos
     $perfil->galeria()->delete();
 
-    // 4. SUBIMOS LAS NUEVAS
     foreach ($galeria as $archivo) {
         if ($archivo instanceof \Illuminate\Http\UploadedFile) {
             $ruta = $archivo->store('galerias', 'directo_publico');
@@ -279,7 +277,7 @@ private function replaceGallery(PerfilGrilla $perfil, array $galeria): void
             'id' => $perfil->id,
             'nombre' => $perfil->nombre,
             'descripcion' => $perfil->descripcion,
-            'logo' => $perfil->logo, // <-- Cambiado
+            'logo' => $perfil->logo_url, // <-- Cambiado
             'direccion' => $perfil->direccion,
             'experiencia' => $perfil->experiencia,
             'especializacion' => $perfil->especializacion,
@@ -290,7 +288,7 @@ private function replaceGallery(PerfilGrilla $perfil, array $galeria): void
             'categoria_nombre' => $perfil->categoria?->nombre,
             'galeria' => $perfil->galeria->map(fn ($imagen) => [
             'id' => $imagen->id,
-            'imagen' => $imagen->imagen, // El accesor hará que salga la URL completa
+            'imagen' => $imagen->imagen_url, // El accesor hará que salga la URL completa
         ]),
             'created_at' => $perfil->created_at,
         ];

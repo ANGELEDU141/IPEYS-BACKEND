@@ -17,10 +17,11 @@ class GaleriaModal extends Model
         'imagen', // <-- Cambiado de imagen_base64 a imagen
     ];
 
-    public function getImagenAttribute($value)
-    {
-        return $value ? URL::to($value) : null;
-    }
+   protected $appends = ['imagen_url'];
+
+public function getImagenUrlAttribute() {
+    return $this->imagen ? URL::to($this->imagen) : null;
+}
 
     public function perfil(): BelongsTo
     {

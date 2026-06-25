@@ -44,10 +44,11 @@ class PerfilGrilla extends Model
     }
 
     // Accesor para el logo: convierte la ruta de BD en URL completa
-    public function getLogoAttribute($value)
-    {
-        return $value ? URL::to($value) : null;
-    }
+ protected $appends = ['logo_url'];
+
+public function getLogoUrlAttribute() {
+    return $this->logo ? URL::to($this->logo) : null;
+}
 
     // Imagenes que se muestran en el modal.
     public function galeria(): HasMany
