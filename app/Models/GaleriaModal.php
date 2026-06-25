@@ -16,12 +16,17 @@ class GaleriaModal extends Model
         'perfil_id',
         'imagen', // <-- Cambiado de imagen_base64 a imagen
     ];
-
-   protected $appends = ['imagen_url'];
-
-public function getImagenUrlAttribute() {
+    protected $appends = ['imagen_url'];
+    public function getImagenUrlAttribute()
+{
+    // Esto genera la URL completa para el frontend
     return $this->imagen ? URL::to($this->imagen) : null;
 }
+
+    public function getImagenAttribute($value)
+    {
+        return $value ? URL::to($value) : null;
+    }
 
     public function perfil(): BelongsTo
     {
