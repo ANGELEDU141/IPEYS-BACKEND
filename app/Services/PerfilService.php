@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Categoria;
 use Illuminate\Support\Facades\Log;
+use Intervention\Image\Laravel\Facades\Image;
 use App\Models\PerfilGrilla;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File; // <-- Importado para limpiar archivos físicos
@@ -85,12 +86,10 @@ class PerfilService
         $datosParaGuardar = $data;
         unset($datosParaGuardar['logo']); // Quitamos el objeto archivo
 
-        // Procesamos el logo si existe
-        if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFile) {
-            $ruta = $data['logo']->store('logos', 'directo_publico');
-            $datosParaGuardar['logo'] = 'uploads/' . $ruta;
-        }
-
+      // Procesamos el logo si existe
+if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFile) {
+    $datosParaGuardar['logo'] = $this->convertirAWebP($data['logo'], 'logos');
+}
         // Asignamos el autor
         $datosParaGuardar['creado_por'] = $adminId;
 
@@ -123,15 +122,16 @@ public function update(int $id, array $data): array
         unset($datosParaActualizar['galeria']);
 
         // 1. Lógica del LOGO (si se envía uno nuevo)
-        if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFile) {
-            // Borrar el viejo usando la ruta limpia
-            if ($perfil->logo && File::exists(public_path($perfil->logo))) {
-                File::delete(public_path($perfil->logo));
-            }
-            
-            $rutaNueva = $data['logo']->store('logos', 'directo_publico');
-            $datosParaActualizar['logo'] = 'uploads/' . $rutaNueva;
-        }
+       // 1. Lógica del LOGO (si se envía uno nuevo)
+if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFile) {
+    // Borrar el viejo
+    if ($perfil->logo && File::exists(public_path($perfil->logo))) {
+        File::delete(public_path($perfil->logo));
+    }
+    
+    // Convertir a WebP y guardar el nuevo
+    $datosParaActualizar['logo'] = $this->convertirAWebP($data['logo'], 'logos');
+}
 
         $perfil->update($datosParaActualizar);
 
@@ -246,31 +246,33 @@ public function delete(int $id): array
 
 private function replaceGallery(PerfilGrilla $perfil, array $galeria): void
 {
+    // 1. Cargamos las fotos antiguas ANTES de borrar nada de la BD
     $fotosViejas = $perfil->galeria; 
 
+    // 2. Borrado Físico "A Prueba de Balas"
     foreach ($fotosViejas as $foto) {
+        // Usamos basename para asegurar que solo tomamos el nombre del archivo
         $nombreBD = basename($foto->imagen);
         $rutaFisica = public_path('uploads/galerias/' . $nombreBD);
 
-        // LOG DE DEPURACIÓN (Revisa tu storage/logs/laravel.log)
-        Log::info("Buscando para borrar: " . $rutaFisica);
-        Log::info("¿Existe el archivo?: " . (File::exists($rutaFisica) ? 'SÍ' : 'NO'));
-
         if (File::exists($rutaFisica)) {
             File::delete($rutaFisica);
+        } else {
+            Log::warning("Archivo no encontrado para borrar: " . $rutaFisica);
         }
     }
 
+    // 3. Eliminamos registros antiguos de la Base de Datos
     $perfil->galeria()->delete();
 
-    foreach ($galeria as $archivo) {
+    // 4. Subimos, convertimos a WebP y guardamos las nuevas fotos
+  foreach ($galeria as $archivo) {
         if ($archivo instanceof \Illuminate\Http\UploadedFile) {
-            $ruta = $archivo->store('galerias', 'directo_publico');
-            $perfil->galeria()->create(['imagen' => 'uploads/' . $ruta]);
+            $rutaFinal = $this->convertirAWebP($archivo, 'galerias');
+            $perfil->galeria()->create(['imagen' => $rutaFinal]);
         }
     }
 }
-
     private function publicGrid(PerfilGrilla $perfil): array
     {
         return [
@@ -305,4 +307,20 @@ private function replaceGallery(PerfilGrilla $perfil, array $galeria): void
             ]),
         ];
     }
+
+    private function convertirAWebP(\Illuminate\Http\UploadedFile $archivo, string $carpeta): string
+{
+    $nombreWebp = uniqid('img_', true) . '.webp';
+    $rutaCarpeta = public_path('uploads/' . $carpeta);
+
+    if (!File::isDirectory($rutaCarpeta)) {
+        File::makeDirectory($rutaCarpeta, 0755, true);
+    }
+
+    $img = Image::read($archivo);
+    $img->encodeByExtension('webp', quality: 80)
+        ->save($rutaCarpeta . '/' . $nombreWebp);
+
+    return 'uploads/' . $carpeta . '/' . $nombreWebp;
+}
 }
