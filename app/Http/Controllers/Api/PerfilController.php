@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\PerfilService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache; // <-- Importamos la fachada de caché
@@ -18,12 +19,15 @@ class PerfilController extends Controller
    public function index(Request $request): JsonResponse
 {
     $queryParams = $request->query();
+    /*
     $cacheKey = 'perfiles_list_' . md5(json_encode($queryParams));
 
     $data = Cache::remember($cacheKey, 300, function () use ($queryParams) {
         return $this->perfilService->list($queryParams);
     });
+*/
 
+    $data = $this->perfilService->list($queryParams);
     // Retornamos el JSON pero le prohibimos al navegador del cliente almacenar la respuesta
     return response()->json($data)
         ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
@@ -41,16 +45,21 @@ class PerfilController extends Controller
 
     // Creacion protegida de perfil.
     public function store(Request $request): JsonResponse
+    
     {
+        $start = microtime(true);
         $adminId = $request->attributes->get('auth_user')->id;
-        $result = $this->perfilService->create($adminId, $request->all());
+       $result = $this->perfilService->create($adminId, $request->all());
+
+       $totalTime = microtime(true) - $start;
+         Log::info("DEBUG - Tiempo total de creación: " . $totalTime . " segundos");
 
         if ($result['status'] === 200 || $result['status'] === 210) { // Si se creó con éxito
             $this->clearPerfilesCache();
         }
 
         return response()->json($result['body'], $result['status']);
-    }
+    } 
 
     // Edicion protegida de perfil.
     public function update(Request $request, int $id): JsonResponse
@@ -100,6 +109,6 @@ class PerfilController extends Controller
         // En hosting compartido, al no usar Redis/Memcached (sino archivos), 
         // lo más seguro y limpio para evitar que queden datos desactualizados en las grillas es flush.
         // Si compartes caché con otros modelos, me avisas para hacerlo por tags.
-        Cache::flush(); 
+        Cache::forget('perfiles_list_cache_key');
     }
 }

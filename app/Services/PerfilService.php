@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Categoria;
+use Illuminate\Support\Facades\Log;
 use App\Models\PerfilGrilla;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File; // <-- Importado para limpiar archivos físicos
@@ -239,23 +240,32 @@ public function delete(int $id): array
         return null;
     }
 
-   private function replaceGallery(PerfilGrilla $perfil, array $galeria): void
+private function replaceGallery(PerfilGrilla $perfil, array $galeria): void
 {
-    // 1. Destruimos los archivos físicos de la galería vieja
-    foreach ($perfil->galeria as $fotoVieja) {
-        $rutaFisica = public_path($fotoVieja->imagen);
+    // 1. CARGA LAS FOTOS ANTES DE BORRAR NADA
+    // Si no las guardamos en una variable, al hacer delete() en el paso 3, las perderás.
+    $fotosViejas = $perfil->galeria; 
+
+    // 2. BORRADO FÍSICO
+    foreach ($fotosViejas as $foto) {
+        // Obtenemos la ruta limpia (quitando cualquier URL si existiera)
+        $rutaLimpia = str_replace(url('/'), '', $foto->imagen);
+        $rutaLimpia = ltrim($rutaLimpia, '/');
+        
+        $rutaFisica = public_path($rutaLimpia);
+
         if (File::exists($rutaFisica)) {
             File::delete($rutaFisica);
+        } else {
+            Log::warning("No se encontró el archivo físico para borrar: " . $rutaFisica);
         }
     }
 
-    // 2. Eliminamos los registros de la base de datos
+    // 3. AHORA SÍ: Borramos los registros de la base de datos
     $perfil->galeria()->delete();
 
-    // 3. Subimos y guardamos las fotos nuevas
-    // Verificamos si es un arreglo de archivos
+    // 4. SUBIMOS LAS NUEVAS
     foreach ($galeria as $archivo) {
-        // Hoppscotch envía los archivos en galeria[] como objetos UploadedFile
         if ($archivo instanceof \Illuminate\Http\UploadedFile) {
             $ruta = $archivo->store('galerias', 'directo_publico');
             $perfil->galeria()->create(['imagen' => 'uploads/' . $ruta]);
