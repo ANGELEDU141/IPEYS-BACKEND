@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('nombre', 150);
             $table->text('descripcion')->nullable();
-            $table->longText('logo_base64')->nullable();
+            $table->longText('logo')->nullable();
             $table->foreignId('categoria_id')->constrained('categorias');
             $table->foreignId('creado_por')->constrained('users');
             $table->timestamp('created_at')->useCurrent();

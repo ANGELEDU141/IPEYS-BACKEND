@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('galeria_modales', function (Blueprint $table) {
             $table->id();
             $table->foreignId('perfil_id')->constrained('perfiles_grilla')->cascadeOnDelete();
-            $table->longText('imagen_base64');
+            $table->longText('imagen');
         });
     }
 
