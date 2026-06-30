@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Categoria;
 use Illuminate\Support\Facades\Log;
 use Intervention\Image\Laravel\Facades\Image;
+
+use Illuminate\Http\Request;
 use App\Models\PerfilGrilla;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File; // <-- Importado para limpiar archivos físicos
@@ -137,27 +139,37 @@ if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFi
 
         // 2. Lógica de GALERÍA (reemplazo total)
       // 2. Lógica de GALERÍA (Sincronización Inteligente)
+// 2. Lógica de GALERÍA (Sincronización Inteligente)
+// 2. Lógica de GALERÍA (Sincronización Inteligente)
 if (array_key_exists('galeria_ids', $data) || array_key_exists('galeria', $data)) {
-    
-    // A. IDs que el usuario quiere conservar
-    $idsParaConservar = $data['galeria_ids'] ?? []; 
 
-    // B. Borrar físicamente las fotos que NO están en los IDs a conservar
-    $fotosParaBorrar = $perfil->galeria()->whereNotIn('id', $idsParaConservar)->get();
-    
+    $idsRaw = $data['galeria_ids'] ?? [];
+
+    $idsParaConservar = is_string($idsRaw)
+        ? explode(',', $idsRaw)
+        : (array) $idsRaw;
+
+    $idsParaConservar = array_map('intval', $idsParaConservar);
+
+    $fotosParaBorrar = $perfil->galeria()
+        ->whereNotIn('id', $idsParaConservar)
+        ->get();
+
     foreach ($fotosParaBorrar as $foto) {
         if (File::exists(public_path($foto->imagen))) {
             File::delete(public_path($foto->imagen));
         }
-        $foto->delete(); // Borra de la BD
+
+        $foto->delete();
     }
 
-    // C. Subir las nuevas imágenes que vienen en $data['galeria']
-    if (isset($data['galeria'])) {
+    if (!empty($data['galeria'])) {
         foreach ($data['galeria'] as $archivo) {
-            if ($archivo instanceof \Illuminate\Http\UploadedFile) {
+            if ($archivo instanceof UploadedFile) {
                 $rutaFinal = $this->convertirAWebP($archivo, 'galerias');
-                $perfil->galeria()->create(['imagen' => $rutaFinal]);
+                $perfil->galeria()->create([
+                    'imagen' => $rutaFinal
+                ]);
             }
         }
     }
