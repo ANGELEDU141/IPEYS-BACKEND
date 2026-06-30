@@ -136,27 +136,32 @@ if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFi
         $perfil->update($datosParaActualizar);
 
         // 2. Lógica de GALERÍA (reemplazo total)
-        if (array_key_exists('galeria', $data)) {
-            // Como ya no tienes el accesor molestando, 
-            // $perfil->galeria contiene las rutas 'uploads/...' directamente.
-            
-            // Borramos todas las fotos actuales del disco
-            foreach ($perfil->galeria as $foto) {
-                if (File::exists(public_path($foto->imagen))) {
-                    File::delete(public_path($foto->imagen));
-                }
-            }
+      // 2. Lógica de GALERÍA (Sincronización Inteligente)
+if (array_key_exists('galeria_ids', $data) || array_key_exists('galeria', $data)) {
+    
+    // A. IDs que el usuario quiere conservar
+    $idsParaConservar = $data['galeria_ids'] ?? []; 
 
-            // Borramos los registros de la BD y guardamos los nuevos
-            $perfil->galeria()->delete();
-            
-            foreach ($data['galeria'] as $archivo) {
-                if ($archivo instanceof \Illuminate\Http\UploadedFile) {
-                    $ruta = $archivo->store('galerias', 'directo_publico');
-                    $perfil->galeria()->create(['imagen' => 'uploads/' . $ruta]);
-                }
+    // B. Borrar físicamente las fotos que NO están en los IDs a conservar
+    $fotosParaBorrar = $perfil->galeria()->whereNotIn('id', $idsParaConservar)->get();
+    
+    foreach ($fotosParaBorrar as $foto) {
+        if (File::exists(public_path($foto->imagen))) {
+            File::delete(public_path($foto->imagen));
+        }
+        $foto->delete(); // Borra de la BD
+    }
+
+    // C. Subir las nuevas imágenes que vienen en $data['galeria']
+    if (isset($data['galeria'])) {
+        foreach ($data['galeria'] as $archivo) {
+            if ($archivo instanceof \Illuminate\Http\UploadedFile) {
+                $rutaFinal = $this->convertirAWebP($archivo, 'galerias');
+                $perfil->galeria()->create(['imagen' => $rutaFinal]);
             }
         }
+    }
+}
 
         return $perfil->load(['categoria:id,nombre', 'galeria']);
     });
