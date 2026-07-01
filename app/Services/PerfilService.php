@@ -14,6 +14,8 @@ use Illuminate\Http\UploadedFile; // <-- Importado para validar los archivos sub
 
 class PerfilService
 {
+
+
     public function list(array $query)
     {
         $perPage = min(max((int) ($query['per_page'] ?? 12), 1), 50);
@@ -63,6 +65,8 @@ class PerfilService
         ];
     }
 
+    
+
   public function detail(int $id): array
 {
     // Asegúrate de incluir la relación 'galeria' aquí
@@ -86,12 +90,20 @@ class PerfilService
     $perfil = DB::transaction(function () use ($adminId, $data) {
         // 1. Preparamos los datos
         $datosParaGuardar = $data;
-        unset($datosParaGuardar['logo']); // Quitamos el objeto archivo
+       unset(
+    $datosParaGuardar['logo'],
+    $datosParaGuardar['pdf']
+);
 
       // Procesamos el logo si existe
 if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFile) {
     $datosParaGuardar['logo'] = $this->convertirAWebP($data['logo'], 'logos');
 }
+if (isset($data['pdf']) && $data['pdf'] instanceof UploadedFile) {
+    $datosParaGuardar['pdf'] = $this->guardarPDF($data['pdf'], 'pdfs');
+}
+
+
         // Asignamos el autor
         $datosParaGuardar['creado_por'] = $adminId;
 
@@ -135,6 +147,18 @@ if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFi
     $datosParaActualizar['logo'] = $this->convertirAWebP($data['logo'], 'logos');
 }
 
+if (isset($data['pdf']) && $data['pdf'] instanceof UploadedFile) {
+
+    if ($perfil->pdf && File::exists(public_path($perfil->pdf))) {
+        File::delete(public_path($perfil->pdf));
+    }
+
+    $datosParaActualizar['pdf'] = $this->guardarPDF(
+        $data['pdf'],
+        'pdfs'
+    );
+}
+
         $perfil->update($datosParaActualizar);
 
         // 2. Lógica de GALERÍA (reemplazo total)
@@ -143,11 +167,15 @@ if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFi
 // 2. Lógica de GALERÍA (Sincronización Inteligente)
 if (array_key_exists('galeria_ids', $data) || array_key_exists('galeria', $data)) {
 
-    $idsRaw = $data['galeria_ids'] ?? [];
+ // En PerfilService.php
+$idsRaw = $data['galeria_ids'] ?? ''; // Ahora recibes "" si no hay nada
 
-    $idsParaConservar = is_string($idsRaw)
-        ? explode(',', $idsRaw)
-        : (array) $idsRaw;
+$idsParaConservar = !empty($idsRaw) 
+    ? array_map('intval', explode(',', $idsRaw)) 
+    : []; // Si es "", esto devuelve []
+
+// Ahora $idsParaConservar es [] (un array vacío real)
+// El whereNotIn('id', []) borrará todo correctamente.
 
     $idsParaConservar = array_map('intval', $idsParaConservar);
 
@@ -199,6 +227,14 @@ public function delete(int $id): array
             File::delete($rutaLogo);
         }
     }
+    if ($perfil->pdf) {
+
+    $rutaPdf = public_path($perfil->pdf);
+
+    if (File::exists($rutaPdf)) {
+        File::delete($rutaPdf);
+    }
+}
     
     // 3. Borramos los archivos de la galería
     foreach ($perfil->galeria as $foto) {
@@ -297,6 +333,7 @@ private function replaceGallery(PerfilGrilla $perfil, array $galeria): void
             'nombre' => $perfil->nombre,
             'descripcion' => $perfil->descripcion,
             'logo' => $perfil->logo_url, // <-- Cambiado
+            'pdf' => $perfil->pdf_url, // <-- Cambiado
             'direccion' => $perfil->direccion,
             'experiencia' => $perfil->experiencia,
             'especializacion' => $perfil->especializacion,
@@ -339,5 +376,19 @@ private function replaceGallery(PerfilGrilla $perfil, array $galeria): void
         ->save($rutaCarpeta . '/' . $nombreWebp);
 
     return 'uploads/' . $carpeta . '/' . $nombreWebp;
+}
+
+private function guardarPDF( \Illuminate\Http\UploadedFile $archivo, string $carpeta): string
+{
+    $nombrePDF = uniqid('pdf_', true) . '.pdf';
+    $rutaCarpeta = public_path('uploads/' . $carpeta);
+
+    if (!File::isDirectory($rutaCarpeta)) {
+        File::makeDirectory($rutaCarpeta, 0755, true);
+    }
+
+    $archivo->move($rutaCarpeta, $nombrePDF);
+
+    return 'uploads/' . $carpeta . '/' . $nombrePDF;
 }
 }
