@@ -19,6 +19,7 @@ Route::get('/categorias/{id}', [CategoriaController::class, 'show']);
 Route::get('/categorias', [CategoriaController::class, 'index']);
 Route::get('/perfiles', [PerfilController::class, 'index']);
 Route::get('/perfiles/{id}', [PerfilController::class, 'show']);
+Route::get('/perfiles/{id}/pdf', [PerfilController::class, 'verPdf']);
 
 // Rutas protegidas por token Bearer de administrador.
 Route::middleware('admin.token')->group(function () {

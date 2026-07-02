@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Services\PerfilService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\JsonResponse;
+use App\Models\PerfilGrilla;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Cache; // <-- Importamos la fachada de caché
 
 class PerfilController extends Controller
@@ -90,6 +92,19 @@ class PerfilController extends Controller
 
         return response()->json($result['body'], $result['status']);
     }
+
+public function verPdf($id)
+{
+    $perfil = PerfilGrilla::findOrFail($id);
+
+    abort_if(!$perfil->pdf, 404, 'Este perfil no tiene PDF.');
+
+    $ruta = public_path($perfil->pdf);
+
+    abort_unless(File::exists($ruta), 404);
+
+    return response()->file($ruta);
+}
 
     // Restauracion de perfil desactivado.
     public function restore(int $id): JsonResponse
